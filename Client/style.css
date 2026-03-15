@@ -1,0 +1,153 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: monospace;
+}
+
+body {
+    font-family: monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #f5f5f5;
+    color: #2a2a2a;
+    overflow: hidden;
+}
+
+#game {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+}
+
+#info {
+    width: 25%;
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    padding: 3vw 2.4vw;
+}
+
+.info-blocks {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3vw;
+    flex: 1;
+}
+
+.info-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4vw;
+}
+
+.info-block h3 {
+    margin: 0;
+    font-size: 1vw;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.info-block h1 {
+    margin: 0;
+    font-size: 2.8vw;
+}
+
+#table {
+    width: 75%;
+    padding: 4vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3.5vw;
+}
+
+.player {
+    display: flex;
+    align-items: center;
+    width: 40vw;
+    font-size: 2vw;
+    justify-content: flex-start;
+    gap: 3vw;
+}
+
+.player-name {
+    width: 12vw;
+    white-space: nowrap;
+}
+
+.cards {
+    display: flex;
+    gap: 1.2vw;
+}
+
+.card {
+    width: 5vw;
+    height: 5vw;
+    border: 1px solid #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5vw;
+    cursor: default;
+}
+
+.card.mine {
+    cursor: pointer;
+}
+
+.card.mine:hover:not(.played) {
+    background: #eee;
+}
+
+.played {
+    background: #ddd;
+    color: #888;
+}
+
+.card.disabled {
+    pointer-events: none;
+    opacity: 0.6;
+    cursor: default;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1vw;
+    width: 100%;
+    align-items: center;
+    padding-bottom: 1vw;
+}
+
+.btn {
+    font-family: monospace;
+    font-size: 1.4vw;
+    padding: 1.2vw 0;
+    border: 1px solid #aaa;
+    background: none;
+    cursor: pointer;
+    width: 80%;
+}
+
+.btn:hover {
+    background: #eee;
+}
+
+.btn:disabled {
+    color: #ccc;
+    border-color: #ddd;
+    cursor: default;
+    background: none;
+    pointer-events: none;
+}
