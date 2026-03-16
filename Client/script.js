@@ -1,91 +1,87 @@
-const gameInfo = {
-    currentTurn: "Player 1",
-    currentUser: "Player 1",
-    phase: "playing",
-    timeRemaining: 12,
-    round: 3,
-    maxRounds: 4,
-    bet: 30,
-    players: [
-        {
-            name: "Player 1",
-            cards: [
-                { value: 0, played: false },
-                { value: 1, played: false },
-                { value: 2, played: false },
-                { value: 3, played: true },
-            ],
-        },
-        {
-            name: "Player 2",
-            cards: [
-                { value: 0, played: false    },
-                { value: 1, played: false },
-                { value: 2, played: false },
-                { value: 3, played: true },
-            ],
-        },
-        {
-            name: "Player 3",
-            cards: [
-                { value: 0, played: false },
-                { value: 1, played: false },
-                { value: 2, played: true },
-                { value: 2, played: false },
-            ],
-        },
-        {
-            name: "Player 4",
-            cards: [
-                { value: 2, played: false },
-                { value: 0, played: false },
-                { value: 1, played: true },
-                { value: 1, played: false },
-            ],
-        },
-    ],
-};
+let gameInfo = null;
+let stompClient = null;
+let gameId = null;
 
-function calculatePlayedValue() {
-    return gameInfo.players.reduce((total, player) => {
-        const playerSum = player.cards.reduce((sum, card) => {
-            if (card.played) {
-                return sum + card.value;
-            } else {
-                return sum;
+function connect() {
+    const socket = new SockJS("http://localhost:8080/ws");
+    stompClient = Stomp.over(socket);
+    stompClient.debug = null;
+
+    stompClient.connect({}, function () {
+        console.log("STOMP connected");
+
+        stompClient.subscribe("/type/game/lobby", function (message) {
+            const state = JSON.parse(message.body);
+            if (!gameId) {
+                gameId = state.gameId;
+                stompClient.subscribe("/type/game/" + gameId, function (msg) {
+                    updateGame(JSON.parse(msg.body));
+                });
             }
-        }, 0);
-        return total + playerSum;
-    }, 0);
+            updateGame(state);
+        });
+
+        stompClient.send("/app/join", {}, JSON.stringify({}));
+
+    }, function (error) {
+        console.log("STOMP error", error);
+    });
 }
 
+function updateGame(state) {
+    gameInfo = {
+        currentTurn: state.currentTurn,
+        currentUser: "Player",
+        phase: state.phase.toLowerCase(),
+        round: state.round,
+        maxRounds: state.maxRounds,
+        bet: state.bet,
+        players: state.players,
+    };
+    renderGame();
+}
+
+function calculatePlayedValue() {
+    let total = 0;
+    for (const player of gameInfo.players) {
+        for (const card of player.cards) {
+            if (card.played) {
+                total += card.value;
+            }
+        }
+    }
+    return total;
+}
 
 function onRaise() {
-    console.log("raise");
+    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "RAISE" }));
 }
 
 function onCall() {
-    console.log("call");
+    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "CALL" }));
 }
 
 function onFold() {
-    console.log("fold");
+    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "FOLD" }));
 }
 
 function onCardClick(playerName, cardIndex) {
     if (gameInfo.currentUser !== playerName) return;
     if (gameInfo.currentTurn !== gameInfo.currentUser) return;
-    console.log("card clicked", playerName, cardIndex);
+    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "PLAY_CARD", cardIndex: cardIndex }));
 }
 
 function renderGame() {
+    if (!gameInfo) return;
+
     const playedValue = calculatePlayedValue();
     const isMyTurn = gameInfo.currentTurn === gameInfo.currentUser;
     const isBetting = gameInfo.phase === "betting";
     const isPlaying = gameInfo.phase === "playing";
+    const isWaiting = gameInfo.phase === "waiting";
 
     let disabledAttr = "";
-    if (!isMyTurn || isPlaying) {
+    if (!isMyTurn || isPlaying || isWaiting) {
         disabledAttr = "disabled";
     }
 
@@ -108,40 +104,55 @@ function renderGame() {
         <button class="btn" onclick="onRaise()" ${disabledAttr}>+$3 RAISE</button>
         <button class="btn" onclick="onCall()" ${disabledAttr}>CALL</button>
         <button class="btn" onclick="onFold()" ${disabledAttr}>FOLD</button>
-    </div>
-    `;
+    </div>`;
 
-    const playersHTML = gameInfo.players
-        .map((player) => {
-            const isMine = player.name === gameInfo.currentUser;
-            const cardsHTML = player.cards
-                .map((card, i) => {
-                    let classes = "card";
-                    let clickHandler = "";
-                    if (card.played) {
-                        classes += " played";
-                    }
-                    if (isMine) {
-                        classes += " mine";
-                    }
-                    if (isBetting) {
-                        classes += " disabled";
-                    } else if (isMine && isMyTurn && !card.played) {
-                        clickHandler = `onclick="onCardClick('${player.name}', ${i})"`;
-                    }
-                    return `<div class="${classes}" ${clickHandler}>${card.value}</div>`;
-                })
-                .join("");
+    const allSlots = [0, 1, 2, 3].map(i => {
+        const player = gameInfo.players[i];
+
+        if (!player) {
             return `
-    <div class="player">
-        <div class="player-name">${player.name}</div>
-        <div class="cards">${cardsHTML}</div>
-    </div>
-            `;
-        })
-        .join("");
+            <div class="player">
+                <div class="player-name" style="color:#ccc">...</div>
+                <div class="cards">
+                    <div class="card disabled" style="border-color:#eee"></div>
+                    <div class="card disabled" style="border-color:#eee"></div>
+                    <div class="card disabled" style="border-color:#eee"></div>
+                    <div class="card disabled" style="border-color:#eee"></div>
+                </div>
+            </div>`;
+        }
 
-    document.getElementById("table").innerHTML = playersHTML;
+        const isMine = player.name === gameInfo.currentUser;
+        let cardsHTML = "";
+
+        for (let i = 0; i < player.cards.length; i++) {
+            const card = player.cards[i];
+            let classes = "card";
+            let clickHandler = "";
+
+            if (card.played) {
+                classes += " played";
+            }
+            if (isMine) {
+                classes += " mine";
+            }
+            if (isBetting || isWaiting) {
+                classes += " disabled";
+            } else if (isMine && isMyTurn && !card.played) {
+                clickHandler = `onclick="onCardClick('${player.name}', ${i})"`;
+            }
+
+            cardsHTML += `<div class="${classes}" ${clickHandler}>${card.value}</div>`;
+        }
+
+        return `
+        <div class="player">
+            <div class="player-name">${player.name}</div>
+            <div class="cards">${cardsHTML}</div>
+        </div>`;
+    }).join("");
+
+    document.getElementById("table").innerHTML = allSlots;
 }
 
-renderGame();
+window.onload = connect;

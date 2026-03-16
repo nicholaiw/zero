@@ -49,9 +49,9 @@ public class GameState {
         public int getBalance()      { return balance; }
         public int getCurrentBet()   { return currentBet; }
 
-        public void setFolded(boolean folded)    { this.folded = folded; }
-        public void setBalance(int balance)      { this.balance = balance; }
-        public void setCurrentBet(int currentBet){ this.currentBet = currentBet; }
+        public void setFolded(boolean folded)     { this.folded = folded; }
+        public void setBalance(int balance)       { this.balance = balance; }
+        public void setCurrentBet(int currentBet) { this.currentBet = currentBet; }
 
         public int getPlayedValue() {
             return cards.stream()
@@ -66,14 +66,14 @@ public class GameState {
     private Phase phase;
     private int round;
     private final int maxRounds = 4;
-    private int pot;
+    private int bet;
     private List<Player> players;
 
     public GameState(int gameId) {
         this.gameId = gameId;
         this.phase = Phase.WAITING;
         this.round = 1;
-        this.pot = 0;
+        this.bet = 0;
         this.players = new ArrayList<>();
     }
 
@@ -103,12 +103,12 @@ public class GameState {
     public Phase getPhase()          { return phase; }
     public int getRound()            { return round; }
     public int getMaxRounds()        { return maxRounds; }
-    public int getPot()              { return pot; }
+    public int getBet()              { return bet; }
     public List<Player> getPlayers() { return players; }
 
     public void setCurrentTurn(String t)         { this.currentTurn = t; }
     public void setPhase(Phase phase)            { this.phase = phase; }
     public void setRound(int round)              { this.round = round; }
-    public void setPot(int pot)                  { this.pot = pot; }
+    public void setBet(int bet)                  { this.bet = bet; }
     public void setPlayers(List<Player> players) { this.players = players; }
 }

@@ -41,7 +41,7 @@ public class GameManager {
     private void startGame(GameState game) {
         game.setPhase(GameState.Phase.BETTING);
         game.setRound(1);
-        game.setPot(0);
+        game.setBet(3);
 
         for (GameState.Player player : game.getPlayers()) {
             player.setFolded(false);
@@ -50,7 +50,6 @@ public class GameManager {
             if (player.getBalance() < 0) {
                 player.setBalance(3);
             }
-            game.setPot(game.getPot() + 3);
         }
 
         game.setCurrentTurn(game.getPlayers().get(0).getName());
