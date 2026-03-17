@@ -6,6 +6,7 @@ public class GameAction {
         RAISE,
         CALL,
         FOLD,
+        ALL_IN,
         PLAY_CARD
     }
 

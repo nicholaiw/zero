@@ -27,15 +27,19 @@ public class GameState {
 
     public static class Player {
         private String name;
+        private String sessionId;
         private List<Card> cards;
         private boolean folded;
+        private boolean allIn;
         private int balance;
         private int currentBet;
 
-        public Player(String name) {
+        public Player(String name, String sessionId) {
             this.name = name;
+            this.sessionId = sessionId;
             this.folded = false;
-            this.balance = 30;
+            this.allIn = false;
+            this.balance = 100;
             this.currentBet = 0;
             this.cards = new ArrayList<>();
             for (int i = 0; i <= 3; i++) {
@@ -43,13 +47,16 @@ public class GameState {
             }
         }
 
-        public String getName()      { return name; }
-        public List<Card> getCards() { return cards; }
-        public boolean isFolded()    { return folded; }
-        public int getBalance()      { return balance; }
-        public int getCurrentBet()   { return currentBet; }
+        public String getName()        { return name; }
+        public String getSessionId()   { return sessionId; }
+        public List<Card> getCards()   { return cards; }
+        public boolean isFolded()      { return folded; }
+        public boolean isAllIn()       { return allIn; }
+        public int getBalance()        { return balance; }
+        public int getCurrentBet()     { return currentBet; }
 
         public void setFolded(boolean folded)     { this.folded = folded; }
+        public void setAllIn(boolean allIn)       { this.allIn = allIn; }
         public void setBalance(int balance)       { this.balance = balance; }
         public void setCurrentBet(int currentBet) { this.currentBet = currentBet; }
 
@@ -62,6 +69,7 @@ public class GameState {
     }
 
     private int gameId;
+    private String yourName;
     private String currentTurn;
     private Phase phase;
     private int round;
@@ -90,6 +98,13 @@ public class GameState {
                 .orElse(null);
     }
 
+    public Player getPlayerBySessionId(String sessionId) {
+        return players.stream()
+                .filter(p -> p.getSessionId().equals(sessionId))
+                .findFirst()
+                .orElse(null);
+    }
+
     public Player getCurrentPlayer() {
         return getPlayer(currentTurn);
     }
@@ -99,6 +114,7 @@ public class GameState {
     }
 
     public int getGameId()           { return gameId; }
+    public String getYourName()      { return yourName; }
     public String getCurrentTurn()   { return currentTurn; }
     public Phase getPhase()          { return phase; }
     public int getRound()            { return round; }
@@ -106,6 +122,7 @@ public class GameState {
     public int getBet()              { return bet; }
     public List<Player> getPlayers() { return players; }
 
+    public void setYourName(String yourName) { this.yourName = yourName; }
     public void setCurrentTurn(String t)         { this.currentTurn = t; }
     public void setPhase(Phase phase)            { this.phase = phase; }
     public void setRound(int round)              { this.round = round; }
