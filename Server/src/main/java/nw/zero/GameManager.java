@@ -76,6 +76,106 @@ public class GameManager {
         return game;
     }
 
+    public GameState handleCardPlay(int gameId, String sessionId, GameAction action) {
+        GameState game = games.get(gameId);
+        if (game == null) return null;
+        if (game.getPhase() != GameState.Phase.PLAYING) return game;
+
+        GameState.Player player = game.getPlayerBySessionId(sessionId);
+        if (player == null) return game;
+        if (!game.getCurrentTurn().equals(player.getName())) return game;
+
+        int cardIndex = action.getCardIndex();
+        if (cardIndex < 0 || cardIndex >= player.getCards().size()) return game;
+
+        GameState.Card card = player.getCards().get(cardIndex);
+        if (card.isPlayed()) return game;
+
+        card.setPlayed(true);
+
+        int total = game.getTotalPlayedValue();
+
+        if (total > 9) {
+            endRound(game, player);
+            return game;
+        }
+
+        advancePlayTurn(game);
+        return game;
+    }
+
+    private void endRound(GameState game, GameState.Player loser) {
+        int pot = 0;
+        for (GameState.Player player : game.getPlayers()) {
+            pot += player.getCurrentBet();
+        }
+
+        List<GameState.Player> winners = new ArrayList<>();
+        for (GameState.Player player : game.getPlayers()) {
+            if (!player.isFolded() && player != loser) {
+                winners.add(player);
+            }
+        }
+
+        if (winners.isEmpty()) {
+            loser.setBalance(loser.getBalance() + pot);
+        } else {
+            int share = pot / winners.size();
+            for (GameState.Player winner : winners) {
+                winner.setBalance(winner.getBalance() + share);
+            }
+        }
+
+        if (game.isGameOver()) {
+            game.setPhase(GameState.Phase.WAITING);
+            return;
+        }
+
+        startNextRound(game);
+    }
+
+    private void startNextRound(GameState game) {
+        game.setRound(game.getRound() + 1);
+        game.setBet(3);
+
+        int startingPlayerIndex = (game.getRound() - 1) % game.getPlayers().size();
+
+        for (GameState.Player player : game.getPlayers()) {
+            player.setFolded(false);
+            player.setAllIn(false);
+            player.setCurrentBet(3);
+            player.setBalance(player.getBalance() - 3);
+
+            List<GameState.Card> freshCards = new ArrayList<>();
+            for (int i = 0; i <= 3; i++) {
+                freshCards.add(new GameState.Card(i));
+            }
+            player.setCards(freshCards);
+        }
+
+        game.setPhase(GameState.Phase.BETTING);
+        game.setCurrentTurn(game.getPlayers().get(startingPlayerIndex).getName());
+    }
+
+    private void advancePlayTurn(GameState game) {
+        List<GameState.Player> players = game.getPlayers();
+        int currentIndex = -1;
+        for (int i = 0; i < players.size(); i++) {
+            if (players.get(i).getName().equals(game.getCurrentTurn())) {
+                currentIndex = i;
+                break;
+            }
+        }
+        for (int i = 1; i <= players.size(); i++) {
+            int nextIndex = (currentIndex + i) % players.size();
+            GameState.Player next = players.get(nextIndex);
+            if (!next.isFolded()) {
+                game.setCurrentTurn(next.getName());
+                return;
+            }
+        }
+    }
+
     private boolean bettingOver(GameState game) {
         int highest = getHighestBet(game);
         for (GameState.Player player : game.getPlayers()) {
@@ -97,16 +197,6 @@ public class GameManager {
             }
         }
         return highest;
-    }
-
-    private List<GameState.Player> getActivePlayers(GameState game) {
-        List<GameState.Player> active = new ArrayList<>();
-        for (GameState.Player player : game.getPlayers()) {
-            if (!player.isFolded()) {
-                active.add(player);
-            }
-        }
-        return active;
     }
 
     private void advanceTurn(GameState game) {

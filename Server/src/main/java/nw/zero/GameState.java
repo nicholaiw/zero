@@ -59,12 +59,16 @@ public class GameState {
         public void setAllIn(boolean allIn)       { this.allIn = allIn; }
         public void setBalance(int balance)       { this.balance = balance; }
         public void setCurrentBet(int currentBet) { this.currentBet = currentBet; }
+        public void setCards(List<Card> cards)    { this.cards = cards; }
 
         public int getPlayedValue() {
-            return cards.stream()
-                    .filter(Card::isPlayed)
-                    .mapToInt(Card::getValue)
-                    .sum();
+            int total = 0;
+            for (Card card : cards) {
+                if (card.isPlayed()) {
+                    total += card.getValue();
+                }
+            }
+            return total;
         }
     }
 
@@ -86,23 +90,29 @@ public class GameState {
     }
 
     public int getTotalPlayedValue() {
-        return players.stream()
-                .mapToInt(Player::getPlayedValue)
-                .sum();
+        int total = 0;
+        for (Player player : players) {
+            total += player.getPlayedValue();
+        }
+        return total;
     }
 
     public Player getPlayer(String name) {
-        return players.stream()
-                .filter(p -> p.getName().equals(name))
-                .findFirst()
-                .orElse(null);
+        for (Player player : players) {
+            if (player.getName().equals(name)) {
+                return player;
+            }
+        }
+        return null;
     }
 
     public Player getPlayerBySessionId(String sessionId) {
-        return players.stream()
-                .filter(p -> p.getSessionId().equals(sessionId))
-                .findFirst()
-                .orElse(null);
+        for (Player player : players) {
+            if (player.getSessionId().equals(sessionId)) {
+                return player;
+            }
+        }
+        return null;
     }
 
     public Player getCurrentPlayer() {
@@ -122,10 +132,10 @@ public class GameState {
     public int getBet()              { return bet; }
     public List<Player> getPlayers() { return players; }
 
-    public void setYourName(String yourName) { this.yourName = yourName; }
-    public void setCurrentTurn(String t)         { this.currentTurn = t; }
-    public void setPhase(Phase phase)            { this.phase = phase; }
-    public void setRound(int round)              { this.round = round; }
-    public void setBet(int bet)                  { this.bet = bet; }
-    public void setPlayers(List<Player> players) { this.players = players; }
+    public void setYourName(String yourName)         { this.yourName = yourName; }
+    public void setCurrentTurn(String t)             { this.currentTurn = t; }
+    public void setPhase(Phase phase)                { this.phase = phase; }
+    public void setRound(int round)                  { this.round = round; }
+    public void setBet(int bet)                      { this.bet = bet; }
+    public void setPlayers(List<Player> players)     { this.players = players; }
 }
