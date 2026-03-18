@@ -31,7 +31,14 @@ public class NetworkHandler {
     @MessageMapping("/game/{gameId}/action")
     public void action(@DestinationVariable int gameId, GameAction action, SimpMessageHeaderAccessor headerAccessor) {
         String sessionId = headerAccessor.getSessionId();
-        GameState game = gameManager.handleBet(gameId, sessionId, action);
+        GameState game;
+
+        if (action.getType() == GameAction.Type.PLAY_CARD) {
+            game = gameManager.handleCardPlay(gameId, sessionId, action);
+        } else {
+            game = gameManager.handleBet(gameId, sessionId, action);
+        }
+
         if (game != null) {
             messaging.convertAndSend("/type/game/" + gameId, game);
         }

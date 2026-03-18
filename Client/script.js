@@ -13,16 +13,19 @@ function connect() {
 
         stompClient.subscribe("/type/game/lobby", function (message) {
             const state = JSON.parse(message.body);
-            if (!currentUser) {
+
+            if (!currentUser && state.yourName) {
                 currentUser = state.yourName;
-                console.log(currentUser);
             }
-            if (!gameId) {
+
+            if (!gameId && state.gameId !== undefined) {
                 gameId = state.gameId;
+
                 stompClient.subscribe("/type/game/" + gameId, function (msg) {
                     updateGame(JSON.parse(msg.body));
                 });
             }
+
             updateGame(state);
         });
 
@@ -41,195 +44,198 @@ function updateGame(state) {
         round: state.round,
         maxRounds: state.maxRounds,
         bet: state.bet,
-        players: state.players,
+        players: state.players
     };
+
     renderGame();
 }
 
 function getMyPlayer() {
+    if (!gameInfo) return null;
+
     for (let i = 0; i < gameInfo.players.length; i++) {
         if (gameInfo.players[i].name === gameInfo.currentUser) {
             return gameInfo.players[i];
         }
     }
+
     return null;
 }
 
 function getHighestBet() {
     let highest = 0;
+
     for (let i = 0; i < gameInfo.players.length; i++) {
         if (gameInfo.players[i].currentBet > highest) {
             highest = gameInfo.players[i].currentBet;
         }
     }
+
     return highest;
 }
 
 function calculatePlayedValue() {
     let total = 0;
-    for (const player of gameInfo.players) {
-        for (const card of player.cards) {
-            if (card.played) {
-                total += card.value;
+
+    for (let i = 0; i < gameInfo.players.length; i++) {
+        const player = gameInfo.players[i];
+
+        for (let j = 0; j < player.cards.length; j++) {
+            if (player.cards[j].played) {
+                total += player.cards[j].value;
             }
         }
     }
+
     return total;
 }
 
+function sendAction(payload) {
+    if (!stompClient || !gameId) return;
+    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify(payload));
+}
+
 function onRaise() {
-    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "RAISE" }));
+    sendAction({ type: "RAISE" });
 }
 
 function onCall() {
-    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "CALL" }));
+    sendAction({ type: "CALL" });
 }
 
 function onFold() {
-    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "FOLD" }));
+    sendAction({ type: "FOLD" });
 }
 
 function onAllIn() {
-    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "ALL_IN" }));
+    sendAction({ type: "ALL_IN" });
 }
 
 function onCardClick(playerName, cardIndex) {
+    if (!gameInfo) return;
     if (gameInfo.currentUser !== playerName) return;
     if (gameInfo.currentTurn !== gameInfo.currentUser) return;
-    stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify({ type: "PLAY_CARD", cardIndex: cardIndex }));
+
+    sendAction({ type: "PLAY_CARD", cardIndex: cardIndex });
 }
 
 function renderGame() {
-    if (!gameInfo) return;
+    if (!gameInfo || !gameInfo.currentUser) return;
 
+    const me = getMyPlayer();
+    const highest = getHighestBet();
     const playedValue = calculatePlayedValue();
+
     const isMyTurn = gameInfo.currentTurn === gameInfo.currentUser;
     const isBetting = gameInfo.phase === "betting";
     const isPlaying = gameInfo.phase === "playing";
     const isWaiting = gameInfo.phase === "waiting";
-    const me = getMyPlayer();
-    const highest = getHighestBet();
 
     let callDifference = 0;
+
     if (me) {
         callDifference = highest - me.currentBet;
     }
 
     let canCall = false;
-    if (me && callDifference > 0 && me.balance >= callDifference) {
-        canCall = true;
-    }
-
     let canRaise = false;
-    if (me && me.balance >= callDifference + 3) {
-        canRaise = true;
+
+    if (me) {
+        if (me.balance >= callDifference) {
+            canCall = true;
+        }
+
+        if (me.balance >= callDifference + 3) {
+            canRaise = true;
+        }
     }
 
     let raiseDisabled = "disabled";
-    if (isMyTurn && isBetting && canRaise) {
-        raiseDisabled = "";
-    }
-
     let callDisabled = "disabled";
-    if (isMyTurn && isBetting && canCall) {
-        callDisabled = "";
-    }
-
     let allInDisabled = "disabled";
-    if (isMyTurn && isBetting) {
-        allInDisabled = "";
-    }
-
     let foldDisabled = "disabled";
+
     if (isMyTurn && isBetting) {
+        if (canRaise) raiseDisabled = "";
+        if (canCall) callDisabled = "";
+        allInDisabled = "";
         foldDisabled = "";
     }
 
     let balanceHTML = "";
+
     if (me) {
-        balanceHTML = `
-        <div class="info-block">
-            <h3>BALANCE</h3>
-            <h1>$${me.balance}</h1>
-        </div>`;
+        balanceHTML =
+            '<div class="info-block">' +
+            '<h3>BALANCE</h3>' +
+            '<h1>$' + me.balance + "</h1>" +
+            "</div>";
     }
 
-    document.getElementById("info").innerHTML = `
-    <div class="info-blocks">
-        <div class="info-block">
-            <h3>ROUND</h3>
-            <h1>${gameInfo.round} / ${gameInfo.maxRounds}</h1>
-        </div>
-        <div class="info-block">
-            <h3>BET</h3>
-            <h1>$${gameInfo.bet}</h1>
-        </div>
-        <div class="info-block">
-            <h3>VALUE</h3>
-            <h1>${playedValue} / 9</h1>
-        </div>
-        ${balanceHTML}
-    </div>
-    <div class="actions">
-        <button class="btn" onclick="onRaise()" ${raiseDisabled}>+$3 RAISE</button>
-        <button class="btn" onclick="onCall()" ${callDisabled}>CALL</button>
-        <button class="btn" onclick="onAllIn()" ${allInDisabled}>ALL IN</button>
-        <button class="btn" onclick="onFold()" ${foldDisabled}>FOLD</button>
-    </div>`;
+    document.getElementById("info").innerHTML =
+        '<div class="info-blocks">' +
+        '<div class="info-block"><h3>ROUND</h3><h1>' + gameInfo.round + " / " + gameInfo.maxRounds + "</h1></div>" +
+        '<div class="info-block"><h3>BET</h3><h1>$' + gameInfo.bet + "</h1></div>" +
+        '<div class="info-block"><h3>VALUE</h3><h1>' + playedValue + " / 9</h1></div>" +
+        balanceHTML +
+        "</div>" +
+        '<div class="actions">' +
+        '<button class="btn" onclick="onRaise()" ' + raiseDisabled + '>+3 RAISE</button>' +
+        '<button class="btn" onclick="onCall()" ' + callDisabled + '>CALL</button>' +
+        '<button class="btn" onclick="onAllIn()" ' + allInDisabled + '>ALL IN</button>' +
+        '<button class="btn" onclick="onFold()" ' + foldDisabled + '>FOLD</button>' +
+        "</div>";
 
     let allSlotsHTML = "";
+
     for (let i = 0; i < 4; i++) {
         const player = gameInfo.players[i];
 
         if (!player) {
-            allSlotsHTML += `
-            <div class="player">
-                <div class="player-name" style="color:#ccc">...</div>
-                <div class="cards">
-                    <div class="card disabled" style="border-color:#eee"></div>
-                    <div class="card disabled" style="border-color:#eee"></div>
-                    <div class="card disabled" style="border-color:#eee"></div>
-                    <div class="card disabled" style="border-color:#eee"></div>
-                </div>
-            </div>`;
+            allSlotsHTML +=
+                '<div class="player">' +
+                '<div class="player-name" style="color:#ccc">...</div>' +
+                '<div class="cards">' +
+                '<div class="card disabled"></div>'.repeat(4) +
+                "</div></div>";
             continue;
         }
 
+        const isMine = player.name === gameInfo.currentUser;
+
         let statusLabel = "";
+
         if (player.folded) {
-            statusLabel = `<span style="font-size:0.9vw;color:#ccc">folded</span>`;
+            statusLabel = '<span style="color:#ccc">folded</span>';
         } else if (player.allIn) {
-            statusLabel = `<span style="font-size:0.9vw;color:#aaa">all in</span>`;
+            statusLabel = '<span style="color:#aaa">all in</span>';
         }
 
-        const isMine = player.name === gameInfo.currentUser;
         let cardsHTML = "";
 
         for (let j = 0; j < player.cards.length; j++) {
             const card = player.cards[j];
+
             let classes = "card";
             let clickHandler = "";
 
-            if (card.played) {
-                classes += " played";
-            }
-            if (isMine) {
-                classes += " mine";
-            }
+            if (card.played) classes += " played";
+            if (isMine) classes += " mine";
+
             if (isBetting || isWaiting) {
                 classes += " disabled";
             } else if (isMine && isMyTurn && !card.played) {
-                clickHandler = `onclick="onCardClick('${player.name}', ${j})"`;
+                clickHandler = 'onclick="onCardClick(\'' + player.name + "', " + j + ')"';
             }
 
-            cardsHTML += `<div class="${classes}" ${clickHandler}>${card.value}</div>`;
+            cardsHTML += '<div class="' + classes + '" ' + clickHandler + ">" + card.value + "</div>";
         }
 
-        allSlotsHTML += `
-        <div class="player">
-            <div class="player-name">${player.name} ${statusLabel}</div>
-            <div class="cards">${cardsHTML}</div>
-        </div>`;
+        allSlotsHTML +=
+            '<div class="player">' +
+            '<div class="player-name">' + player.name + " " + statusLabel + "</div>" +
+            '<div class="cards">' + cardsHTML + "</div>" +
+            "</div>";
     }
 
     document.getElementById("table").innerHTML = allSlotsHTML;

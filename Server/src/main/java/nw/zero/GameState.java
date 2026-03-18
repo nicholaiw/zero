@@ -31,6 +31,7 @@ public class GameState {
         private List<Card> cards;
         private boolean folded;
         private boolean allIn;
+        private boolean hasActed;
         private int balance;
         private int currentBet;
 
@@ -39,6 +40,7 @@ public class GameState {
             this.sessionId = sessionId;
             this.folded = false;
             this.allIn = false;
+            this.hasActed = false;
             this.balance = 100;
             this.currentBet = 0;
             this.cards = new ArrayList<>();
@@ -52,11 +54,13 @@ public class GameState {
         public List<Card> getCards()   { return cards; }
         public boolean isFolded()      { return folded; }
         public boolean isAllIn()       { return allIn; }
+        public boolean getHasActed()   { return hasActed; }
         public int getBalance()        { return balance; }
         public int getCurrentBet()     { return currentBet; }
 
         public void setFolded(boolean folded)     { this.folded = folded; }
         public void setAllIn(boolean allIn)       { this.allIn = allIn; }
+        public void setHasActed(boolean hasActed) { this.hasActed = hasActed; }
         public void setBalance(int balance)       { this.balance = balance; }
         public void setCurrentBet(int currentBet) { this.currentBet = currentBet; }
         public void setCards(List<Card> cards)    { this.cards = cards; }
@@ -120,7 +124,7 @@ public class GameState {
     }
 
     public boolean isGameOver() {
-        return round > maxRounds;
+        return round >= maxRounds;
     }
 
     public int getGameId()           { return gameId; }
@@ -132,10 +136,10 @@ public class GameState {
     public int getBet()              { return bet; }
     public List<Player> getPlayers() { return players; }
 
-    public void setYourName(String yourName)         { this.yourName = yourName; }
-    public void setCurrentTurn(String t)             { this.currentTurn = t; }
-    public void setPhase(Phase phase)                { this.phase = phase; }
-    public void setRound(int round)                  { this.round = round; }
-    public void setBet(int bet)                      { this.bet = bet; }
-    public void setPlayers(List<Player> players)     { this.players = players; }
+    public void setYourName(String yourName)     { this.yourName = yourName; }
+    public void setCurrentTurn(String t)         { this.currentTurn = t; }
+    public void setPhase(Phase phase)            { this.phase = phase; }
+    public void setRound(int round)              { this.round = round; }
+    public void setBet(int bet)                  { this.bet = bet; }
+    public void setPlayers(List<Player> players) { this.players = players; }
 }
