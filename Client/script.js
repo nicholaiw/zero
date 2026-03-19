@@ -197,7 +197,9 @@ function renderGame() {
                 '<div class="player-name" style="color:#ccc">...</div>' +
                 '<div class="cards">' +
                 '<div class="card disabled"></div>'.repeat(4) +
-                "</div></div>";
+                '</div>' +
+                '<div class="player-status"></div>' +
+                '</div>';
             continue;
         }
 
@@ -225,6 +227,7 @@ function renderGame() {
             if (isBetting || isWaiting) {
                 classes += " disabled";
             } else if (isMine && isMyTurn && !card.played) {
+                classes += " clickable";
                 clickHandler = 'onclick="onCardClick(\'' + player.name + "', " + j + ')"';
             }
 
@@ -233,9 +236,10 @@ function renderGame() {
 
         allSlotsHTML +=
             '<div class="player">' +
-            '<div class="player-name">' + player.name + " " + statusLabel + "</div>" +
-            '<div class="cards">' + cardsHTML + "</div>" +
-            "</div>";
+            '<div class="player-name' + (isMine ? " my-player" : "") + '">' + player.name + '</div>' +
+            '<div class="cards">' + cardsHTML + '</div>' +
+            '<div class="player-status">' + statusLabel + '</div>' +
+            '</div>';
     }
 
     document.getElementById("table").innerHTML = allSlotsHTML;
