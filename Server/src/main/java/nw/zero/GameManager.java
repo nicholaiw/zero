@@ -163,7 +163,8 @@ public class GameManager {
         game.setRound(game.getRound() + 1);
 
         if (game.isGameOver()) {
-            game.setPhase(GameState.Phase.WAITING);
+            game.setPhase(GameState.Phase.FINISHED);
+            games.remove(game.getGameId());
             return;
         }
 

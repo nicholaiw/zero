@@ -37,6 +37,8 @@ function connect() {
 }
 
 function updateGame(state) {
+    if (!gameInfo) showView("game");
+
     gameInfo = {
         currentTurn: state.currentTurn,
         currentUser: currentUser,
@@ -47,7 +49,21 @@ function updateGame(state) {
         players: state.players
     };
 
+    if (gameInfo.phase === "finished") {
+        resetGame();
+        showView("lobby");
+        return;
+    }
+
     renderGame();
+}
+
+function resetGame() {
+    gameInfo = null;
+    gameId = null;
+    currentUser = null;
+    stompClient.disconnect();
+    stompClient = null;
 }
 
 function getMyPlayer() {
@@ -244,5 +260,3 @@ function renderGame() {
 
     document.getElementById("table").innerHTML = allSlotsHTML;
 }
-
-window.onload = connect;

@@ -8,7 +8,8 @@ public class GameState {
     public enum Phase {
         WAITING,
         BETTING,
-        PLAYING
+        PLAYING,
+        FINISHED
     }
 
     public static class Card {
@@ -124,7 +125,7 @@ public class GameState {
     }
 
     public boolean isGameOver() {
-        return round > maxRounds;
+        return round >= maxRounds;
     }
 
     public int getGameId()           { return gameId; }
