@@ -113,6 +113,11 @@ public class GameManager {
         }
 
         advancePlayTurn(game);
+
+        if (countActivePlayers(game) == 1) {
+            endRound(game, null);
+        }
+
         return game;
     }
 
@@ -120,6 +125,14 @@ public class GameManager {
         if (player == null) return false;
         if (!game.getCurrentTurn().equals(player.getName())) return false;
         return true;
+    }
+
+    private int countActivePlayers(GameState game) {
+        int count = 0;
+        for (GameState.Player p : game.getPlayers()) {
+            if (!p.isFolded()) count++;
+        }
+        return count;
     }
 
     private void endRound(GameState game, GameState.Player loser) {
@@ -147,12 +160,13 @@ public class GameManager {
             }
         }
 
+        game.setRound(game.getRound() + 1);
+
         if (game.isGameOver()) {
             game.setPhase(GameState.Phase.WAITING);
             return;
         }
 
-        game.setRound(game.getRound() + 1);
         setupRound(game);
     }
 
@@ -253,6 +267,11 @@ public class GameManager {
 
     private void startPlayingPhase(GameState game) {
         game.setPhase(GameState.Phase.PLAYING);
+
+        if (countActivePlayers(game) == 1) {
+            endRound(game, null);
+            return;
+        }
 
         int startIndex = (game.getRound() - 1) % game.getPlayers().size();
 

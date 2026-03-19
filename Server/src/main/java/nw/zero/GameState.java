@@ -44,7 +44,7 @@ public class GameState {
             this.balance = 100;
             this.currentBet = 0;
             this.cards = new ArrayList<>();
-            for (int i = 0; i <= 3; i++) {
+            for (int i = 0; i < 4; i++) {
                 this.cards.add(new Card(i));
             }
         }
@@ -124,7 +124,7 @@ public class GameState {
     }
 
     public boolean isGameOver() {
-        return round >= maxRounds;
+        return round > maxRounds;
     }
 
     public int getGameId()           { return gameId; }
