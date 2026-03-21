@@ -45,6 +45,7 @@ public class GameState {
             this.balance = 100;
             this.currentBet = 0;
             this.cards = new ArrayList<>();
+
             for (int i = 0; i < 4; i++) {
                 this.cards.add(new Card(i));
             }
@@ -75,6 +76,13 @@ public class GameState {
             }
             return total;
         }
+
+        public boolean hasUnplayedCards() {
+            for (Card card : cards) {
+                if (!card.isPlayed()) return true;
+            }
+            return false;
+        }
     }
 
     private int gameId;
@@ -94,21 +102,58 @@ public class GameState {
         this.players = new ArrayList<>();
     }
 
+    public void setGameId(int gameId) {
+        this.gameId = gameId;
+    }
+
+    public GameState masked(String viewerSessionId) {
+        GameState view = new GameState(this.gameId);
+
+        view.setGameId(this.gameId);
+
+        view.yourName = this.yourName;
+        view.currentTurn = this.currentTurn;
+        view.phase = this.phase;
+        view.round = this.round;
+        view.bet = this.bet;
+
+        List<Player> maskedPlayers = new ArrayList<>();
+
+        for (Player p : this.players) {
+            Player mp = new Player(p.getName(), p.getSessionId());
+            mp.setFolded(p.isFolded());
+            mp.setAllIn(p.isAllIn());
+            mp.setHasActed(p.getHasActed());
+            mp.setBalance(p.getBalance());
+            mp.setCurrentBet(p.getCurrentBet());
+
+            List<Card> maskedCards = new ArrayList<>();
+
+            for (Card c : p.getCards()) {
+                boolean isOwner = p.getSessionId().equals(viewerSessionId);
+                boolean reveal = isOwner && this.phase != Phase.WAITING;
+
+                int displayValue = (reveal || c.isPlayed()) ? c.getValue() : -1;
+
+                Card mc = new Card(displayValue);
+                mc.setPlayed(c.isPlayed());
+                maskedCards.add(mc);
+            }
+
+            mp.setCards(maskedCards);
+            maskedPlayers.add(mp);
+        }
+
+        view.setPlayers(maskedPlayers);
+        return view;
+    }
+
     public int getTotalPlayedValue() {
         int total = 0;
         for (Player player : players) {
             total += player.getPlayedValue();
         }
         return total;
-    }
-
-    public Player getPlayer(String name) {
-        for (Player player : players) {
-            if (player.getName().equals(name)) {
-                return player;
-            }
-        }
-        return null;
     }
 
     public Player getPlayerBySessionId(String sessionId) {
@@ -118,10 +163,6 @@ public class GameState {
             }
         }
         return null;
-    }
-
-    public Player getCurrentPlayer() {
-        return getPlayer(currentTurn);
     }
 
     public boolean isGameOver() {

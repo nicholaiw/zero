@@ -116,9 +116,22 @@ public class GameManager {
 
         if (countActivePlayers(game) == 1) {
             endRound(game, null);
+            return game;
+        }
+
+        if (allCardsPlayed(game)) {
+            endRound(game, null);
+            return game;
         }
 
         return game;
+    }
+
+    private boolean allCardsPlayed(GameState game) {
+        for (GameState.Player p : game.getPlayers()) {
+            if (!p.isFolded() && p.hasUnplayedCards()) return false;
+        }
+        return true;
     }
 
     private boolean isValidTurn(GameState game, GameState.Player player) {
@@ -153,8 +166,7 @@ public class GameManager {
         if (winners.isEmpty()) {
             loser.setBalance(loser.getBalance() + pot);
         } else {
-            int share = pot / winners.size();
-
+            int share = (pot + winners.size() - 1) / winners.size();
             for (GameState.Player p : winners) {
                 p.setBalance(p.getBalance() + share);
             }
@@ -176,6 +188,15 @@ public class GameManager {
 
         int startIndex = (game.getRound() - 1) % game.getPlayers().size();
 
+        List<GameState.Card> deck = new ArrayList<>();
+        for (int value = 0; value <= 3; value++) {
+            for (int i = 0; i < 10; i++) {
+                deck.add(new GameState.Card(value));
+            }
+        }
+        Collections.shuffle(deck);
+
+        int cardIndex = 0;
         for (GameState.Player p : game.getPlayers()) {
             p.setFolded(false);
             p.setAllIn(false);
@@ -184,11 +205,9 @@ public class GameManager {
             p.setBalance(p.getBalance() - 3);
 
             List<GameState.Card> cards = new ArrayList<>();
-
             for (int i = 0; i < 4; i++) {
-                cards.add(new GameState.Card(i));
+                cards.add(deck.get(cardIndex++));
             }
-
             p.setCards(cards);
         }
 

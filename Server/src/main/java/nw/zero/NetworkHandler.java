@@ -3,8 +3,8 @@ package nw.zero;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
@@ -18,18 +18,22 @@ public class NetworkHandler {
     private GameManager gameManager;
 
     @MessageMapping("/join")
-    @SendTo("/type/game/lobby")
-    public GameState join(SimpMessageHeaderAccessor headerAccessor) {
+    public void join(SimpMessageHeaderAccessor headerAccessor) {
         String sessionId = headerAccessor.getSessionId();
-        System.out.println("join received, session: " + sessionId);
+        System.out.println("JOIN: " + sessionId);
+
         GameState game = gameManager.enterGame(sessionId);
-        System.out.println("game id: " + game.getGameId());
-        game.setYourName(game.getPlayerBySessionId(sessionId).getName());
-        return game;
+
+        System.out.println("Assigned gameId: " + game.getGameId());
+
+        broadcast(game);
     }
 
     @MessageMapping("/game/{gameId}/action")
-    public void action(@DestinationVariable int gameId, GameAction action, SimpMessageHeaderAccessor headerAccessor) {
+    public void action(@DestinationVariable int gameId,
+                       GameAction action,
+                       SimpMessageHeaderAccessor headerAccessor) {
+
         String sessionId = headerAccessor.getSessionId();
         GameState game;
 
@@ -40,7 +44,37 @@ public class NetworkHandler {
         }
 
         if (game != null) {
-            messaging.convertAndSend("/type/game/" + gameId, game);
+            broadcast(game);
         }
+    }
+
+    private void broadcast(GameState game) {
+        for (GameState.Player p : game.getPlayers()) {
+
+            GameState view = game.masked(p.getSessionId());
+
+            view.setYourName(p.getName());
+
+            System.out.println(
+                    "SEND: " + p.getName() + "gameId=" + view.getGameId() + "turn=" + view.getCurrentTurn() + " phase=" + view.getPhase()
+            );
+
+            messaging.convertAndSendToUser(
+                    p.getSessionId(),
+                    "/queue/game",
+                    view,
+                    buildHeaders(p.getSessionId())
+            );
+        }
+    }
+
+    private java.util.Map<String, Object> buildHeaders(String sessionId) {
+        SimpMessageHeaderAccessor accessor =
+                SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+
+        accessor.setSessionId(sessionId);
+        accessor.setLeaveMutable(true);
+
+        return accessor.getMessageHeaders();
     }
 }

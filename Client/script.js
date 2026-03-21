@@ -11,20 +11,24 @@ function connect() {
     stompClient.connect({}, function () {
         console.log("STOMP connected");
 
-        stompClient.subscribe("/type/game/lobby", function (message) {
+        stompClient.subscribe("/user/queue/game", function (message) {
             const state = JSON.parse(message.body);
 
-            if (!currentUser && state.yourName) {
+            console.log("RAW STATE:", state);
+
+            if (state.yourName) {
                 currentUser = state.yourName;
             }
 
-            if (!gameId && state.gameId !== undefined) {
-                gameId = state.gameId;
+            gameId = state.gameId;
 
-                stompClient.subscribe("/type/game/" + gameId, function (msg) {
-                    updateGame(JSON.parse(msg.body));
-                });
+            console.log("gameId:", gameId);
+
+            if (gameId == null) {
+                console.error("Missing gameId from server!", state);
             }
+
+            console.log("currentUser:", currentUser);
 
             updateGame(state);
         });
@@ -42,12 +46,14 @@ function updateGame(state) {
     gameInfo = {
         currentTurn: state.currentTurn,
         currentUser: currentUser,
-        phase: state.phase.toLowerCase(),
+        phase: state.phase ? state.phase.toLowerCase() : "unknown",
         round: state.round,
         maxRounds: state.maxRounds,
         bet: state.bet,
         players: state.players
     };
+
+    console.log("GAME INFO:", gameInfo);
 
     if (gameInfo.phase === "finished") {
         resetGame();
@@ -59,10 +65,16 @@ function updateGame(state) {
 }
 
 function resetGame() {
+    console.log("RESET GAME");
+
     gameInfo = null;
     gameId = null;
     currentUser = null;
-    stompClient.disconnect();
+
+    if (stompClient) {
+        stompClient.disconnect();
+    }
+
     stompClient = null;
 }
 
@@ -107,38 +119,51 @@ function calculatePlayedValue() {
 }
 
 function sendAction(payload) {
-    if (!stompClient || !gameId) return;
+    console.log("SENDING ACTION:", payload);
+
+    if (!stompClient) {
+        console.log("BLOCKED: stompClient missing");
+        return;
+    }
+
+    if (gameId == null) {
+        console.log("BLOCKED: gameId missing");
+        return;
+    }
+
     stompClient.send("/app/game/" + gameId + "/action", {}, JSON.stringify(payload));
 }
 
-function onRaise() {
-    sendAction({ type: "RAISE" });
-}
-
-function onCall() {
-    sendAction({ type: "CALL" });
-}
-
-function onFold() {
-    sendAction({ type: "FOLD" });
-}
-
-function onAllIn() {
-    sendAction({ type: "ALL_IN" });
-}
+function onRaise() { sendAction({ type: "RAISE" }); }
+function onCall() { sendAction({ type: "CALL" }); }
+function onFold() { sendAction({ type: "FOLD" }); }
+function onAllIn() { sendAction({ type: "ALL_IN" }); }
 
 function onCardClick(playerName, cardIndex) {
     if (!gameInfo) return;
-    if (gameInfo.currentUser !== playerName) return;
-    if (gameInfo.currentTurn !== gameInfo.currentUser) return;
+
+    if (gameInfo.currentUser !== playerName) {
+        console.log("BLOCKED: not your card");
+        return;
+    }
+
+    if (gameInfo.currentTurn !== gameInfo.currentUser) {
+        console.log("BLOCKED: not your turn");
+        return;
+    }
 
     sendAction({ type: "PLAY_CARD", cardIndex: cardIndex });
 }
 
 function renderGame() {
-    if (!gameInfo || !gameInfo.currentUser) return;
+    if (!gameInfo || !gameInfo.currentUser) {
+        console.log("RENDER BLOCKED: missing gameInfo/currentUser");
+        return;
+    }
 
     const me = getMyPlayer();
+    console.log("ME:", me);
+
     const highest = getHighestBet();
     const playedValue = calculatePlayedValue();
 
@@ -146,6 +171,14 @@ function renderGame() {
     const isBetting = gameInfo.phase === "betting";
     const isPlaying = gameInfo.phase === "playing";
     const isWaiting = gameInfo.phase === "waiting";
+
+    console.log({
+        isMyTurn,
+        isBetting,
+        phase: gameInfo.phase,
+        currentTurn: gameInfo.currentTurn,
+        currentUser: gameInfo.currentUser
+    });
 
     let callDifference = 0;
 
@@ -176,6 +209,13 @@ function renderGame() {
         if (canCall) callDisabled = "";
         allInDisabled = "";
         foldDisabled = "";
+    } else {
+        console.log("BUTTONS DISABLED:", {
+            isMyTurn,
+            isBetting,
+            canCall,
+            canRaise
+        });
     }
 
     let balanceHTML = "";
@@ -236,6 +276,7 @@ function renderGame() {
 
             let classes = "card";
             let clickHandler = "";
+            const display = card.value === -1 ? "?" : card.value;
 
             if (card.played) classes += " played";
             if (isMine) classes += " mine";
@@ -247,7 +288,7 @@ function renderGame() {
                 clickHandler = 'onclick="onCardClick(\'' + player.name + "', " + j + ')"';
             }
 
-            cardsHTML += '<div class="' + classes + '" ' + clickHandler + ">" + card.value + "</div>";
+            cardsHTML += '<div class="' + classes + '" ' + clickHandler + ">" + display + "</div>";
         }
 
         allSlotsHTML +=
