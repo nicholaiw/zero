@@ -7,6 +7,9 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import java.util.Optional;
 
 @Controller
 public class NetworkHandler {
@@ -16,6 +19,16 @@ public class NetworkHandler {
 
     @Autowired
     private GameManager gameManager;
+
+    @Autowired
+    private Users users;
+
+    @GetMapping("/test-user")
+    @ResponseBody
+    public String testUser() {
+        User user = findOrCreateUser("google-123", "testplayer");
+        return "Created/found user: " + user.getUsername();
+    }
 
     @MessageMapping("/join")
     public void join(SimpMessageHeaderAccessor headerAccessor) {
@@ -48,6 +61,23 @@ public class NetworkHandler {
         }
     }
 
+    public User findOrCreateUser(String googleId, String username) {
+        Optional<User> existing = users.findByGoogleId(googleId);
+
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        User user = new User();
+        user.setGoogleId(googleId);
+        user.setUsername(username);
+        return users.save(user);
+    }
+
+    public boolean usernameExists(String username) {
+        return users.findByUsername(username).isPresent();
+    }
+
     private void broadcast(GameState game) {
         for (GameState.Player p : game.getPlayers()) {
 
@@ -56,7 +86,7 @@ public class NetworkHandler {
             view.setYourName(p.getName());
 
             System.out.println(
-                    "SEND: " + p.getName() + "gameId=" + view.getGameId() + "turn=" + view.getCurrentTurn() + " phase=" + view.getPhase()
+                    "SEND: " + p.getName() + " gameId=" + view.getGameId() + " turn=" + view.getCurrentTurn() + " phase=" + view.getPhase()
             );
 
             messaging.convertAndSendToUser(
