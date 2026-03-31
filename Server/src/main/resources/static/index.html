@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Game</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="login" style="display:none">
+    <button class="btn" id="github-login">Login with GitHub</button>
+</div>
+
+<div id="choose-username" style="display:none">
+    <input type="text" id="username" placeholder="Enter username" />
+    <button class="btn" id="submit-username-btn">Submit</button>
+    <p id="username-error" style="color:red;"></p>
+</div>
+
+<div id="lobby" style="display:none">
+    <p id="lobby-name"></p>
+    <button class="btn" id="find-game-btn">Find Game</button>
+</div>
+
+<div id="game" style="display:none">
+    <div id="info"></div>
+    <div id="table"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script src="script.js"></script>
+<script src="main.js"></script>
+
+</body>
+</html>

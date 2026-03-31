@@ -13,13 +13,13 @@ public class User {
 	@Column(unique = true, nullable = false)
 	private String githubID;
 
-	@Column(unique = true, nullable = false)
+	@Column(unique = true)
 	private String username;
 
-	public Long getId()           { return id; }
-	public String getgithubID()   { return githubID; }
-	public String getUsername()   { return username; }
+	public Long getId() { return id; }
+	public String getGithubID() { return githubID; }
+	public String getUsername() { return username; }
 
-	public void setgithubID(String githubID) { this.githubID = githubID; }
+	public void setGithubID(String githubID) { this.githubID = githubID; }
 	public void setUsername(String username) { this.username = username; }
 }
