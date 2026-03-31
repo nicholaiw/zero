@@ -61,15 +61,15 @@ public class NetworkHandler {
         }
     }
 
-    public User findOrCreateUser(String googleId, String username) {
-        Optional<User> existing = users.findByGoogleId(googleId);
+    public User findOrCreateUser(String githubID, String username) {
+        Optional<User> existing = users.findByGithubID(githubID);
 
         if (existing.isPresent()) {
             return existing.get();
         }
 
         User user = new User();
-        user.setGoogleId(googleId);
+        user.setgithubID(githubID);
         user.setUsername(username);
         return users.save(user);
     }

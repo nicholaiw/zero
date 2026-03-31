@@ -11,15 +11,15 @@ public class User {
 	private Long id;
 
 	@Column(unique = true, nullable = false)
-	private String googleId;
+	private String githubID;
 
 	@Column(unique = true, nullable = false)
 	private String username;
 
 	public Long getId()           { return id; }
-	public String getGoogleId()   { return googleId; }
+	public String getgithubID()   { return githubID; }
 	public String getUsername()   { return username; }
 
-	public void setGoogleId(String googleId) { this.googleId = googleId; }
+	public void setgithubID(String githubID) { this.githubID = githubID; }
 	public void setUsername(String username) { this.username = username; }
 }
