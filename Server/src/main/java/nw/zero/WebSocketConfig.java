@@ -10,7 +10,9 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.server.HandshakeInterceptor;
+import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 import jakarta.servlet.http.HttpSession;
+import java.security.Principal;
 import java.util.Map;
 
 @Configuration
@@ -35,10 +37,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         if (request instanceof ServletServerHttpRequest servletRequest) {
                             HttpSession session = servletRequest.getServletRequest().getSession(false);
                             if (session == null) return false;
-
                             User user = (User) session.getAttribute("user");
                             if (user == null || user.getUsername() == null) return false;
-
+                            attributes.put("sessionId", session.getId());
                             attributes.put("username", user.getUsername());
                         }
                         return true;
@@ -47,6 +48,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     @Override
                     public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                                WebSocketHandler wsHandler, Exception exception) {}
+                })
+                .setHandshakeHandler(new DefaultHandshakeHandler() {
+                    @Override
+                    protected Principal determineUser(ServerHttpRequest request, WebSocketHandler wsHandler,
+                                                      Map<String, Object> attributes) {
+                        String sessionId = (String) attributes.get("sessionId");
+                        return () -> sessionId;
+                    }
                 })
                 .withSockJS();
     }

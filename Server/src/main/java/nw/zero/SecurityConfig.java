@@ -9,9 +9,11 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final NetworkHandler networkHandler;
+    private final GameController gameController;
 
-    public SecurityConfig(NetworkHandler networkHandler) {
+    public SecurityConfig(NetworkHandler networkHandler, GameController gameController) {
         this.networkHandler = networkHandler;
+        this.gameController = gameController;
     }
 
     @Bean
@@ -24,7 +26,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
-                        .successHandler(new OauthHandler(networkHandler))
+                        .successHandler(new OauthHandler(networkHandler, gameController))
                 );
 
         return http.build();

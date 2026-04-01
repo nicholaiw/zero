@@ -9,19 +9,13 @@ public class GameManager {
     private final Map<Integer, GameState> games = new HashMap<>();
     private int nextGameId = 0;
 
-    public GameState enterGame(String sessionId) {
+    public GameState enterGame(String sessionId, String username) {
         GameState game = findOpenGame();
+        if (game == null) game = createGame();
 
-        if (game == null) {
-            game = createGame();
-        }
+        game.getPlayers().add(new GameState.Player(username, sessionId));
 
-        int playerNumber = game.getPlayers().size() + 1;
-        game.getPlayers().add(new GameState.Player("Player " + playerNumber, sessionId));
-
-        if (game.getPlayers().size() == 4) {
-            startGame(game);
-        }
+        if (game.getPlayers().size() == 4) startGame(game);
 
         return game;
     }

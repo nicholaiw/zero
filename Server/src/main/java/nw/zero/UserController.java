@@ -9,9 +9,11 @@ import org.springframework.http.ResponseEntity;
 public class UserController {
 
     private final Users users;
+    private final GameController gameController;
 
-    public UserController(Users users) {
+    public UserController(Users users, GameController gameController) {
         this.users = users;
+        this.gameController = gameController;
     }
 
     @GetMapping("/me")
@@ -21,7 +23,8 @@ public class UserController {
 
         return ResponseEntity.ok(Map.of(
                 "loggedIn", true,
-                "needsUsername", user.getUsername() == null
+                "needsUsername", user.getUsername() == null,
+                "username", user.getUsername() != null ? user.getUsername() : ""
         ));
     }
 
@@ -40,6 +43,7 @@ public class UserController {
         user.setUsername(newUsername);
         users.save(user);
         session.setAttribute("user", user);
+        gameController.registerSession(session.getId(), newUsername);
         return ResponseEntity.ok("ok");
     }
 }

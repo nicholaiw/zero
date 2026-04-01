@@ -10,9 +10,11 @@ import java.io.IOException;
 public class OauthHandler implements AuthenticationSuccessHandler {
 
     private final NetworkHandler networkHandler;
+    private final GameController gameController;
 
-    public OauthHandler(NetworkHandler networkHandler) {
+    public OauthHandler(NetworkHandler networkHandler, GameController gameController) {
         this.networkHandler = networkHandler;
+        this.gameController = gameController;
     }
 
     @Override
@@ -24,6 +26,10 @@ public class OauthHandler implements AuthenticationSuccessHandler {
 
         User dbUser = networkHandler.findPendingUser(githubID);
         request.getSession().setAttribute("user", dbUser);
+
+        if (dbUser.getUsername() != null) {
+            gameController.registerSession(request.getSession().getId(), dbUser.getUsername());
+        }
 
         response.sendRedirect("/");
     }
