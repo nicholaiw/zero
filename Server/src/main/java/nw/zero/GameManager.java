@@ -9,13 +9,15 @@ public class GameManager {
     private final Map<Integer, GameState> games = new HashMap<>();
     private int nextGameId = 0;
 
-    public GameState enterGame(String sessionId, String username) {
+    public GameState enterGame(String sessionId, String username, int balance) {
         GameState game = findOpenGame();
         if (game == null) game = createGame();
 
-        game.getPlayers().add(new GameState.Player(username, sessionId));
+        GameState.Player player = new GameState.Player(username, sessionId);
+        player.setBalance(balance);
+        game.getPlayers().add(player);
 
-        if (game.getPlayers().size() == 4) startGame(game);
+        if (game.getPlayers().size() == 2) startGame(game);
 
         return game;
     }
@@ -301,7 +303,7 @@ public class GameManager {
 
     private GameState findOpenGame() {
         for (GameState g : games.values()) {
-            if (g.getPhase() == GameState.Phase.WAITING && g.getPlayers().size() < 4) {
+            if (g.getPhase() == GameState.Phase.WAITING && g.getPlayers().size() < 2) {
                 return g;
             }
         }

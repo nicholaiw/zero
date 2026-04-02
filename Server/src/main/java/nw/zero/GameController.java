@@ -12,11 +12,13 @@ public class GameController {
 
     private final GameManager gameManager;
     private final SimpMessagingTemplate messaging;
+    private final Users users;
     private final Map<String, String> sessionUsernames = new java.util.concurrent.ConcurrentHashMap<>();
 
-    public GameController(GameManager gameManager, SimpMessagingTemplate messaging) {
+    public GameController(GameManager gameManager, SimpMessagingTemplate messaging, Users users) {
         this.gameManager = gameManager;
         this.messaging = messaging;
+        this.users = users;
     }
 
     public void registerSession(String sessionId, String username) {
@@ -27,7 +29,10 @@ public class GameController {
     public void join(Principal principal) {
         String sessionId = principal.getName();
         String username = sessionUsernames.getOrDefault(sessionId, "Unknown");
-        GameState game = gameManager.enterGame(sessionId, username);
+        int balance = users.findByUsername(username)
+                .map(User::getBalance)
+                .orElse(100);
+        GameState game = gameManager.enterGame(sessionId, username, balance);
         broadcastState(game);
     }
 
@@ -40,7 +45,21 @@ public class GameController {
         } else {
             game = gameManager.handleBet(gameId, sessionId, action);
         }
-        if (game != null) broadcastState(game);
+        if (game != null) {
+            if (game.getPhase() == GameState.Phase.FINISHED) {
+                persistBalances(game);
+            }
+            broadcastState(game);
+        }
+    }
+
+    private void persistBalances(GameState game) {
+        for (GameState.Player player : game.getPlayers()) {
+            users.findByUsername(player.getName()).ifPresent(user -> {
+                user.setBalance(player.getBalance());
+                users.save(user);
+            });
+        }
     }
 
     private void broadcastState(GameState game) {
