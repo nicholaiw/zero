@@ -177,6 +177,9 @@ public class GameState {
     public int getMaxRounds()        { return maxRounds; }
     public int getBet()              { return bet; }
     public List<Player> getPlayers() { return players; }
+    private long turnDeadline;
+    public long getTurnDeadline() { return turnDeadline; }
+    public void setTurnDeadline(long turnDeadline) { this.turnDeadline = turnDeadline; }
 
     public void setYourName(String yourName)     { this.yourName = yourName; }
     public void setCurrentTurn(String t)         { this.currentTurn = t; }

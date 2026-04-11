@@ -22,6 +22,34 @@ public class GameManager {
         return game;
     }
 
+    public GameState handleTimeout(int gameId, String sessionId) {
+        GameState game = games.get(gameId);
+        if (game == null) return null;
+
+        GameState.Player player = game.getPlayerBySessionId(sessionId);
+        if (player == null) return null;
+        if (!game.getCurrentTurn().equals(player.getName())) return null;
+
+        if (game.getPhase() == GameState.Phase.BETTING) {
+            GameAction action = new GameAction();
+            action.setType(GameAction.Type.FOLD);
+            return handleBet(gameId, sessionId, action);
+        }
+
+        if (game.getPhase() == GameState.Phase.PLAYING) {
+            for (int i = 0; i < player.getCards().size(); i++) {
+                if (!player.getCards().get(i).isPlayed()) {
+                    GameAction action = new GameAction();
+                    action.setType(GameAction.Type.PLAY_CARD);
+                    action.setCardIndex(i);
+                    return handleCardPlay(gameId, sessionId, action);
+                }
+            }
+        }
+
+        return null;
+    }
+
     public GameState handleBet(int gameId, String sessionId, GameAction action) {
         GameState game = games.get(gameId);
         if (game == null) return null;
@@ -30,16 +58,18 @@ public class GameManager {
         GameState.Player player = game.getPlayerBySessionId(sessionId);
         if (!isValidTurn(game, player)) return game;
 
-        int highest = getHighestBet(game);
-
         if (action.getType() == GameAction.Type.FOLD) {
             player.setFolded(true);
             player.setHasActed(true);
+            if (countActivePlayers(game) == 1) {
+                endRound(game, null);
+                return game;
+            }
         }
 
         if (action.getType() == GameAction.Type.CALL) {
+            int highest = getHighestBet(game);
             int difference = highest - player.getCurrentBet();
-
             if (player.getBalance() >= difference) {
                 player.setBalance(player.getBalance() - difference);
                 player.setCurrentBet(highest);
@@ -48,15 +78,14 @@ public class GameManager {
         }
 
         if (action.getType() == GameAction.Type.RAISE) {
+            int highest = getHighestBet(game);
             int newBet = highest + 3;
             int difference = newBet - player.getCurrentBet();
-
             if (player.getBalance() >= difference) {
                 player.setBalance(player.getBalance() - difference);
                 player.setCurrentBet(newBet);
                 game.setBet(newBet);
                 player.setHasActed(true);
-
                 for (GameState.Player p : game.getPlayers()) {
                     if (p != player && !p.isFolded() && !p.isAllIn()) {
                         p.setHasActed(false);
@@ -67,15 +96,11 @@ public class GameManager {
 
         if (action.getType() == GameAction.Type.ALL_IN) {
             int newBet = player.getCurrentBet() + player.getBalance();
-
             player.setCurrentBet(newBet);
             player.setBalance(0);
             player.setAllIn(true);
             player.setHasActed(true);
-
-            if (newBet > game.getBet()) {
-                game.setBet(newBet);
-            }
+            if (newBet > game.getBet()) game.setBet(newBet);
         }
 
         if (bettingOver(game)) {
@@ -108,8 +133,6 @@ public class GameManager {
             return game;
         }
 
-        advancePlayTurn(game);
-
         if (countActivePlayers(game) == 1) {
             endRound(game, null);
             return game;
@@ -120,46 +143,24 @@ public class GameManager {
             return game;
         }
 
+        advancePlayTurn(game);
         return game;
-    }
-
-    private boolean allCardsPlayed(GameState game) {
-        for (GameState.Player p : game.getPlayers()) {
-            if (!p.isFolded() && p.hasUnplayedCards()) return false;
-        }
-        return true;
-    }
-
-    private boolean isValidTurn(GameState game, GameState.Player player) {
-        if (player == null) return false;
-        if (!game.getCurrentTurn().equals(player.getName())) return false;
-        return true;
-    }
-
-    private int countActivePlayers(GameState game) {
-        int count = 0;
-        for (GameState.Player p : game.getPlayers()) {
-            if (!p.isFolded()) count++;
-        }
-        return count;
     }
 
     private void endRound(GameState game, GameState.Player loser) {
         int pot = 0;
-
         for (GameState.Player p : game.getPlayers()) {
             pot += p.getCurrentBet();
         }
 
         List<GameState.Player> winners = new ArrayList<>();
-
         for (GameState.Player p : game.getPlayers()) {
             if (!p.isFolded() && p != loser) {
                 winners.add(p);
             }
         }
 
-        if (winners.isEmpty()) {
+        if (winners.isEmpty() && loser != null) {
             loser.setBalance(loser.getBalance() + pot);
         } else {
             int share = (pot + winners.size() - 1) / winners.size();
@@ -181,7 +182,6 @@ public class GameManager {
 
     private void setupRound(GameState game) {
         game.setBet(3);
-
         int startIndex = (game.getRound() - 1) % game.getPlayers().size();
 
         List<GameState.Card> deck = new ArrayList<>();
@@ -211,45 +211,30 @@ public class GameManager {
         game.setCurrentTurn(game.getPlayers().get(startIndex).getName());
     }
 
-    private boolean bettingOver(GameState game) {
-        int highest = getHighestBet(game);
+    private void startPlayingPhase(GameState game) {
+        game.setPhase(GameState.Phase.PLAYING);
 
-        for (GameState.Player p : game.getPlayers()) {
-            if (p.isFolded() || p.isAllIn()) continue;
-            if (!p.getHasActed()) return false;
-            if (p.getCurrentBet() < highest) return false;
+        if (countActivePlayers(game) == 1) {
+            endRound(game, null);
+            return;
         }
 
-        return true;
-    }
-
-    private int getHighestBet(GameState game) {
-        int highest = 0;
-
-        for (GameState.Player p : game.getPlayers()) {
-            if (p.getCurrentBet() > highest) {
-                highest = p.getCurrentBet();
+        int startIndex = (game.getRound() - 1) % game.getPlayers().size();
+        for (int i = 0; i < game.getPlayers().size(); i++) {
+            GameState.Player p = game.getPlayers().get((startIndex + i) % game.getPlayers().size());
+            if (!p.isFolded()) {
+                game.setCurrentTurn(p.getName());
+                return;
             }
         }
-
-        return highest;
     }
 
     private void advanceTurn(GameState game) {
         List<GameState.Player> players = game.getPlayers();
-
-        int index = -1;
-
-        for (int i = 0; i < players.size(); i++) {
-            if (players.get(i).getName().equals(game.getCurrentTurn())) {
-                index = i;
-                break;
-            }
-        }
+        int index = getCurrentPlayerIndex(game, players);
 
         for (int i = 1; i <= players.size(); i++) {
             GameState.Player next = players.get((index + i) % players.size());
-
             if (!next.isFolded() && !next.isAllIn()) {
                 game.setCurrentTurn(next.getName());
                 return;
@@ -261,19 +246,10 @@ public class GameManager {
 
     private void advancePlayTurn(GameState game) {
         List<GameState.Player> players = game.getPlayers();
-
-        int index = -1;
-
-        for (int i = 0; i < players.size(); i++) {
-            if (players.get(i).getName().equals(game.getCurrentTurn())) {
-                index = i;
-                break;
-            }
-        }
+        int index = getCurrentPlayerIndex(game, players);
 
         for (int i = 1; i <= players.size(); i++) {
             GameState.Player next = players.get((index + i) % players.size());
-
             if (!next.isFolded()) {
                 game.setCurrentTurn(next.getName());
                 return;
@@ -281,33 +257,55 @@ public class GameManager {
         }
     }
 
-    private void startPlayingPhase(GameState game) {
-        game.setPhase(GameState.Phase.PLAYING);
-
-        if (countActivePlayers(game) == 1) {
-            endRound(game, null);
-            return;
+    private int getCurrentPlayerIndex(GameState game, List<GameState.Player> players) {
+        for (int i = 0; i < players.size(); i++) {
+            if (players.get(i).getName().equals(game.getCurrentTurn())) return i;
         }
+        return -1;
+    }
 
-        int startIndex = (game.getRound() - 1) % game.getPlayers().size();
-
-        for (int i = 0; i < game.getPlayers().size(); i++) {
-            GameState.Player p = game.getPlayers().get((startIndex + i) % game.getPlayers().size());
-
-            if (!p.isFolded()) {
-                game.setCurrentTurn(p.getName());
-                return;
-            }
+    private boolean bettingOver(GameState game) {
+        int highest = getHighestBet(game);
+        for (GameState.Player p : game.getPlayers()) {
+            if (p.isFolded() || p.isAllIn()) continue;
+            if (!p.getHasActed()) return false;
+            if (p.getCurrentBet() < highest) return false;
         }
+        return true;
+    }
+
+    private boolean allCardsPlayed(GameState game) {
+        for (GameState.Player p : game.getPlayers()) {
+            if (!p.isFolded() && p.hasUnplayedCards()) return false;
+        }
+        return true;
+    }
+
+    private boolean isValidTurn(GameState game, GameState.Player player) {
+        if (player == null) return false;
+        return game.getCurrentTurn().equals(player.getName());
+    }
+
+    private int countActivePlayers(GameState game) {
+        int count = 0;
+        for (GameState.Player p : game.getPlayers()) {
+            if (!p.isFolded()) count++;
+        }
+        return count;
+    }
+
+    private int getHighestBet(GameState game) {
+        int highest = 0;
+        for (GameState.Player p : game.getPlayers()) {
+            if (p.getCurrentBet() > highest) highest = p.getCurrentBet();
+        }
+        return highest;
     }
 
     private GameState findOpenGame() {
         for (GameState g : games.values()) {
-            if (g.getPhase() == GameState.Phase.WAITING && g.getPlayers().size() < 2) {
-                return g;
-            }
+            if (g.getPhase() == GameState.Phase.WAITING && g.getPlayers().size() < 2) return g;
         }
-
         return null;
     }
 
