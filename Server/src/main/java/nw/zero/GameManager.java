@@ -2,14 +2,18 @@ package nw.zero;
 
 import org.springframework.stereotype.Service;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class GameManager {
 
-    private final Map<Integer, GameState> games = new HashMap<>();
-    private int nextGameId = 0;
+    private static final int MAX_PLAYERS = 4;
 
-    public GameState enterGame(String sessionId, String username, int balance) {
+    private final Map<Integer, GameState> games = new ConcurrentHashMap<>();
+    private final AtomicInteger nextGameId = new AtomicInteger(0);
+
+    public synchronized GameState enterGame(String sessionId, String username, int balance) {
         GameState game = findOpenGame();
         if (game == null) game = createGame();
 
@@ -17,9 +21,19 @@ public class GameManager {
         player.setBalance(balance);
         game.getPlayers().add(player);
 
-        if (game.getPlayers().size() == 2) startGame(game);
+        if (game.getPlayers().size() == MAX_PLAYERS) startGame(game);
 
         return game;
+    }
+
+    /** Lets the controller check whose turn it is without touching game state,
+     *  so it can avoid resetting the turn timer on out-of-turn/garbage actions. */
+    public boolean isCurrentTurn(int gameId, String sessionId) {
+        GameState game = games.get(gameId);
+        if (game == null || game.getCurrentTurn() == null) return false;
+
+        GameState.Player player = game.getPlayerBySessionId(sessionId);
+        return player != null && game.getCurrentTurn().equals(player.getName());
     }
 
     public GameState handleTimeout(int gameId, String sessionId) {
@@ -162,10 +176,15 @@ public class GameManager {
 
         if (winners.isEmpty() && loser != null) {
             loser.setBalance(loser.getBalance() + pot);
-        } else {
-            int share = (pot + winners.size() - 1) / winners.size();
-            for (GameState.Player p : winners) {
-                p.setBalance(p.getBalance() + share);
+        } else if (!winners.isEmpty()) {
+            // Floor-divide, then hand out the remainder one chip at a time
+            // instead of rounding every winner up (which was minting chips).
+            int share = pot / winners.size();
+            int remainder = pot % winners.size();
+            for (int i = 0; i < winners.size(); i++) {
+                int amount = share + (i < remainder ? 1 : 0);
+                GameState.Player w = winners.get(i);
+                w.setBalance(w.getBalance() + amount);
             }
         }
 
@@ -304,15 +323,15 @@ public class GameManager {
 
     private GameState findOpenGame() {
         for (GameState g : games.values()) {
-            if (g.getPhase() == GameState.Phase.WAITING && g.getPlayers().size() < 2) return g;
+            if (g.getPhase() == GameState.Phase.WAITING && g.getPlayers().size() < MAX_PLAYERS) return g;
         }
         return null;
     }
 
     private GameState createGame() {
-        GameState game = new GameState(nextGameId);
-        games.put(nextGameId, game);
-        nextGameId++;
+        int id = nextGameId.getAndIncrement();
+        GameState game = new GameState(id);
+        games.put(id, game);
         return game;
     }
 

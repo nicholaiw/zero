@@ -15,6 +15,8 @@ import java.util.concurrent.TimeUnit;
 @Controller
 public class GameController {
 
+    private static final long TURN_TIMEOUT_SECONDS = 30;
+
     private final GameManager gameManager;
     private final SimpMessagingTemplate messaging;
     private final Users users;
@@ -45,6 +47,12 @@ public class GameController {
     @MessageMapping("/game/{gameId}/action")
     public void action(@DestinationVariable int gameId, Principal principal, GameAction action) {
         String sessionId = principal.getName();
+
+        // Ignore anything that isn't actually this player's turn — otherwise a
+        // player (or a stray/garbage message) can repeatedly cancel and restart
+        // the turn timer for whoever IS on the clock, defeating the timeout.
+        if (!gameManager.isCurrentTurn(gameId, sessionId)) return;
+
         cancelTimer(gameId);
         GameState game;
         if (action.getType() == GameAction.Type.PLAY_CARD) {
@@ -74,7 +82,7 @@ public class GameController {
         if (currentPlayer == null) return;
 
         String sessionId = currentPlayer.getSessionId();
-        long deadline = System.currentTimeMillis() + 30_000;
+        long deadline = System.currentTimeMillis() + TURN_TIMEOUT_SECONDS * 1000;
         game.setTurnDeadline(deadline);
 
         ScheduledFuture<?> timer = scheduler.schedule(() -> {
@@ -84,7 +92,7 @@ public class GameController {
                 broadcastState(result);
                 startTimer(result);
             }
-        }, 5, TimeUnit.SECONDS);
+        }, TURN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         timers.put(gameId, timer);
     }
